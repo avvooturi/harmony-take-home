@@ -1,0 +1,9 @@
+.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+backend/test.db
+frontend/.next/
+frontend/node_modules/
+*.tsbuildinfo
