@@ -70,9 +70,13 @@ npm run build
 
 Tests cover unauthorized reads/tools, approval enforcement, rejection, exactly-once execution, duplicate idempotency keys, stale versions, proactive correlation, and audit creation.
 
-## On-prem constraints
+## Infrastructure control and delegation
 
-All persisted data stays in local PostgreSQL. No hosted model, database, vector store, agent platform, or SaaS observability system is required. Redis, Kafka, and a vector database are deliberately omitted because they do not strengthen this POC.
+The POC keeps orchestration, authorization, permissions, approvals, memory, audit, tool policy/execution, and primary persistence internally controlled. PostgreSQL and the application run in the local environment. ERP, Outlook/Microsoft Graph, Entra ID, and internal document repositories are treated as existing enterprise systems and are reached through least-privilege connectors rather than recreated.
+
+No mandatory hosted model, SaaS database, hosted agent platform, or SaaS observability dependency exists. That is a pragmatic POC choice, not a prohibition on delegation: an approved external capability may be used when it offers a concrete quality, security, operational, or cost advantage and its data boundary, privacy implications, coupling, and exit path are documented. See the [infrastructure ownership and delegation register](docs/system-design.md#infrastructure-ownership-and-delegation-register).
+
+Redis, Kafka, and a vector database remain omitted because they do not strengthen this vertical slice.
 
 ## Known limitations
 
