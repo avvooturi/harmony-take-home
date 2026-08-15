@@ -44,6 +44,7 @@ The category describes who controls the running capability and its data boundary
 | Microsoft Outlook / Microsoft Graph | **Existing enterprise system** | Mail and calendar already live in Microsoft 365. The agent should integrate rather than duplicate mailboxes or calendars. | Scoped search queries, relevant message/calendar fields, drafts, and approved notifications. The connector must not bulk-copy mailboxes into agent memory. | Respect Graph delegated/application permissions, tenant boundaries, retention, and sensitivity labels; minimize message content sent onward. | Low coupling through `OutlookConnector`; Graph can replace the mock without changing orchestration. |
 | Microsoft Entra ID | **Existing enterprise system** | Enterprise identity, MFA, lifecycle, and group management belong in the established identity provider. Building identity would be less secure and duplicative. | Signed identity claims and stable subject/group identifiers enter the authentication adapter; internal application permissions remain locally evaluated. | Validate issuer, audience, signature, tenant, token lifetime, and group/role mapping. Never treat a client-provided employee header as production identity. | Low coupling through the authentication adapter; authorization remains internal. |
 | Internal policy and knowledge repositories | **Existing enterprise system** | Authoritative documents should remain in governed repositories rather than be recreated as agent-owned truth. | Task-relevant document excerpts and metadata cross the knowledge connector after access filtering. | Preserve document ACLs, classification, provenance, and deletion/retention obligations. | Low coupling through `KnowledgeConnector`; the POC uses seeded local documents. |
+| Microsoft Teams | **Existing enterprise system** | Meeting and collaboration history already belongs to Microsoft 365 and should remain source-owned. | Only meetings involving the active employee and relevant summaries or decisions cross the connector for recent context. | Preserve membership, sensitivity labels, retention, and Graph permission boundaries; do not persist raw history as memory. | Low coupling through `TeamsConnector`; the POC uses seeded source rows. |
 | Locally hosted Ollama/vLLM model endpoint | **In-house** | When selected, the model server runs inside the controlled environment; deterministic logic keeps the safety flow operational without it. We operate an existing model runtime rather than build an inference engine. | Minimized authorized context crosses an internal process boundary; never credentials, unrestricted enterprise data, or hidden policy state. | The model host still requires isolation, access control, retention-aware logging, and model supply-chain review. Outputs remain untrusted and cannot authorize or execute tools. | Optional and low coupling through `LLMProvider`; provider and model version are recorded for audit. |
 | Approved externally hosted model endpoint | **Replaceable/optional external integration** | It may be delegated when model quality, specialized capability, capacity, or operating cost justifies it and company policy permits. The platform does not require it. | The same minimized authorized prompt/context as a local provider; sensitive fields should be redacted or withheld according to policy. | Requires contractual no-training/no-retention terms, regional processing controls, encryption, vendor risk review, and egress auditing. Some workloads may be prohibited entirely. | Low coupling through `LLMProvider`; removing it does not change tools, authorization, approval, memory, or persistence. |
 | Enterprise broker or external observability platform | **Replaceable/optional external integration** | Not used by the POC. It should be delegated only when existing company infrastructure provides needed scale or operations more safely than a new internal component. | Broker: event IDs and minimum workflow payloads. Observability: operational metrics and redacted metadata, not prompts, email bodies, memory, or approval evidence by default. | Apply payload minimization, access controls, retention, regional routing, and vendor/tenant review. Sensitive audit remains in primary persistence. | Future adapter boundary only; no current runtime dependency. |
@@ -69,6 +70,27 @@ sequenceDiagram
   LLM-->>Orchestrator: Recommendation/tool request
   Orchestrator-->>User: Recommendation (no mutation)
 ```
+
+## Per-user work-context assembly
+
+```mermaid
+flowchart LR
+  E[Authenticated employee] --> A[Authorization and self-scope]
+  A --> C[Context service]
+  C --> ERP[ERP connector: active and recent work]
+  C --> OUT[Outlook connector: today and relevant mail]
+  C --> TEAM[Teams connector: recent meetings]
+  C --> ORG[Organization connector: relationships]
+  C --> MEM[Memory service: selective durable facts]
+  ERP --> VIEW[Per-user work context]
+  OUT --> VIEW
+  TEAM --> VIEW
+  ORG --> VIEW
+  MEM --> VIEW
+  VIEW --> REC[Role- and permission-aware recommendations]
+```
+
+Current and recent context is assembled on demand and retains source provenance. It is not automatically written to `memories`. The memory service returns only durable records explicitly seeded or saved through its selective write method. The API is self-scoped by default; requesting another employee's context is denied unless a future explicit `work_context.read_all` policy is granted.
 
 ## Proactive detection data flow
 

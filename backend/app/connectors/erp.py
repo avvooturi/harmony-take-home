@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from ..models import (IdempotencyRecord, Inventory, Part, ProductionOrder,
+from ..models import (ERPActivity, IdempotencyRecord, Inventory, Part, ProductionOrder,
                       ProductionOrderPart, PurchaseOrder, Supplier)
 
 
@@ -79,3 +79,15 @@ class ERPConnector:
         self.db.commit()
         return {**payload, "idempotent_replay": False}
 
+    def assigned_orders(self, employee_id: str) -> list[dict]:
+        orders = self.db.scalars(select(ProductionOrder).where(
+            ProductionOrder.assigned_employee_id == employee_id,
+            ProductionOrder.status == "ACTIVE")).all()
+        return [self.production_order(order.id) for order in orders]
+
+    def recent_activity(self, employee_id: str) -> list[dict]:
+        rows = self.db.scalars(select(ERPActivity).where(
+            ERPActivity.employee_id == employee_id).order_by(ERPActivity.occurred_at.desc())).all()
+        return [{"id": row.id, "type": row.activity_type, "entity_type": row.entity_type,
+                 "entity_id": row.entity_id, "summary": row.summary,
+                 "occurred_at": row.occurred_at.isoformat()} for row in rows]

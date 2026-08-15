@@ -93,6 +93,43 @@ class CalendarEvent(Base):
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class EmployeeEmailAccess(Base):
+    __tablename__ = "employee_email_access"
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), primary_key=True)
+    email_id: Mapped[str] = mapped_column(ForeignKey("emails.id"), primary_key=True)
+    unread: Mapped[bool] = mapped_column(Boolean, default=True)
+    relevance: Mapped[str] = mapped_column(String, default="NORMAL")
+
+
+class TeamsMeeting(Base):
+    __tablename__ = "teams_meetings"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    title: Mapped[str] = mapped_column(String)
+    participant_ids: Mapped[list] = mapped_column(JSON)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    summary: Mapped[str] = mapped_column(Text)
+    decisions: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class OrganizationRelationship(Base):
+    __tablename__ = "organization_relationships"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"))
+    related_employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"))
+    relationship: Mapped[str] = mapped_column(String)
+
+
+class ERPActivity(Base):
+    __tablename__ = "erp_activities"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"))
+    activity_type: Mapped[str] = mapped_column(String)
+    entity_type: Mapped[str] = mapped_column(String)
+    entity_id: Mapped[str] = mapped_column(String)
+    summary: Mapped[str] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"
     id: Mapped[str] = mapped_column(String, primary_key=True)

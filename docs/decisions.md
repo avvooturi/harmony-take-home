@@ -36,6 +36,10 @@
 
 **Decision:** memory has explicit type, source, importance, and expiry. **Why:** storing every conversation increases privacy and relevance risk. **Alternative:** automatic transcript retention. **Tradeoff:** fewer remembered details, better governance.
 
+## Current context, recent history, and memory remain distinct
+
+**Decision:** assemble current work and recent enterprise history on demand through connectors, while persisting only explicitly selected durable facts in agent memory. **Why:** ERP, Outlook, Teams, and organizational systems remain authoritative, and relevance to one agent run does not make raw history a durable user fact. **Alternative:** copy all source activity into an agent profile or vector store. **Tradeoff:** context assembly depends on source availability and retrieval quality, but privacy, deletion semantics, provenance, and source-of-truth integrity are substantially stronger.
+
 ## Connector boundaries
 
 **Decision:** ERP, Outlook, identity, knowledge, and model implementations sit behind focused adapters. **Why:** existing ERP APIs, Microsoft Graph/Entra, internal repositories, and approved model providers can be used without moving their vendor-specific behavior into orchestration. Each adapter defines the minimum data allowed to cross its boundary. **Alternative:** direct vendor/API access throughout agent code. **Tradeoff:** small interface overhead in exchange for replaceability, testability, policy control, and an exit path.

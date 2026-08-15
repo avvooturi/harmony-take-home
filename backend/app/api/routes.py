@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..agent.context import ContextService
 from ..agent.provider import DeterministicProvider
 from ..auth.service import AuthorizationService
 from ..connectors.erp import ERPConnector, VersionConflict
@@ -54,6 +55,20 @@ def employees(db: Session = Depends(get_db)):
 @router.get("/me")
 def me(employee: Employee = Depends(get_current_employee)):
     return serialize(employee, ["id", "name", "role", "department", "permissions"])
+
+
+@router.get("/work-context")
+def work_context(employee: Employee = Depends(get_current_employee), db: Session = Depends(get_db)):
+    return ContextService(db).work_context(employee)
+
+
+@router.get("/work-context/{employee_id}")
+def employee_work_context(employee_id: str, employee: Employee = Depends(get_current_employee),
+                          db: Session = Depends(get_db)):
+    subject = db.get(Employee, employee_id)
+    if not subject:
+        raise HTTPException(404, "Employee not found")
+    return ContextService(db).work_context(employee, subject)
 
 
 @router.post("/proactive/run")

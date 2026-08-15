@@ -36,6 +36,17 @@ UNDERSTAND → RETRIEVE_CONTEXT → REASON → PLAN → RECOMMEND
 
 The model receives task-scoped authorized context, never database access. ERP, Outlook, and knowledge are accessed only through connectors. See [system design](docs/system-design.md) and [architecture decisions](docs/decisions.md).
 
+## Per-user Work Context
+
+The **Work Context** view changes with the active demo employee and keeps four concepts separate:
+
+- **Current Work:** live, authorized ERP assignments and risks, pending approvals, today's Outlook calendar, and relevant unread email.
+- **Recent Context:** recent Outlook threads, Teams meetings, ERP activity, and prior agent recommendations retrieved from their source modules when the view is built.
+- **Long-Term Memory:** selective durable facts such as responsibilities, preferences, approved suppliers, projects, or unresolved work. Records carry type, source, importance, timestamps, and optional expiry.
+- **Recommended Actions:** role- and permission-aware actions composed from the three context layers. Recommendations never grant authority; tools still pass application authorization and approval gates.
+
+Raw mail, meetings, calendar events, and ERP history are not copied into the memory table. The POC stores them in source-system mock tables; production adapters would query Microsoft Graph, Teams/Graph, ERP, and organizational directories through the same connector boundaries.
+
 ## Safety and threat model
 
 - Model responses and tool requests are untrusted input.
