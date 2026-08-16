@@ -87,3 +87,29 @@ def test_proactive_scenario_creates_correct_alert(client, pm_headers):
 
 def test_floor_employee_cannot_trigger_purchasing_analysis(client, floor_headers):
     assert client.post("/api/proactive/run", headers=floor_headers).status_code == 403
+
+
+def test_pending_attention_cannot_be_dismissed(client, pm_headers):
+    create_approval(client, pm_headers)
+    item = client.get("/api/attention", headers=pm_headers).json()[0]
+    response = client.post(f"/api/attention/{item['id']}/dismiss", headers=pm_headers)
+    assert response.status_code == 409
+
+
+def test_rejected_attention_can_be_dismissed_without_erasing_approval(client, pm_headers):
+    approval = create_approval(client, pm_headers)
+    item = client.get("/api/attention", headers=pm_headers).json()[0]
+    client.post(f"/api/approvals/{approval['id']}/decision", headers=pm_headers,
+                json={"decision": "REJECT"})
+    decided = client.get("/api/attention", headers=pm_headers).json()[0]
+    assert decided["status"] == "REJECTED"
+    response = client.post(f"/api/attention/{item['id']}/dismiss", headers=pm_headers)
+    assert response.json()["decision"] == "REJECTED"
+    assert client.get("/api/attention", headers=pm_headers).json() == []
+    assert client.get("/api/approvals", headers=pm_headers).json()[0]["status"] == "REJECTED"
+
+
+def test_employee_cannot_dismiss_another_users_attention(client, pm_headers, floor_headers):
+    create_approval(client, pm_headers)
+    item = client.get("/api/attention", headers=pm_headers).json()[0]
+    assert client.post(f"/api/attention/{item['id']}/dismiss", headers=floor_headers).status_code == 404

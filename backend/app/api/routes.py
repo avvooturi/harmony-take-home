@@ -80,7 +80,10 @@ def proactive(employee: Employee = Depends(get_current_employee), db: Session = 
 
 @router.get("/attention")
 def attention(employee: Employee = Depends(get_current_employee), db: Session = Depends(get_db)):
-    rows = db.scalars(select(AttentionItem).where(AttentionItem.employee_id == employee.id)).all()
+    rows = db.scalars(select(AttentionItem).where(
+        AttentionItem.employee_id == employee.id,
+        AttentionItem.status != "DISMISSED",
+    )).all()
     return [serialize(i, ["id", "run_id", "priority", "title", "evidence", "recommendation", "status"])
             for i in rows]
 
@@ -101,6 +104,9 @@ def decide(approval_id: str, body: Decision, employee: Employee = Depends(get_cu
         return {"status": approval.status, "message": "Decision already recorded"}
     if body.decision.upper() == "REJECT":
         approval.status, approval.decided_at = "REJECTED", datetime.now(timezone.utc)
+        item = db.scalar(select(AttentionItem).where(AttentionItem.run_id == approval.run_id))
+        if item:
+            item.status = "REJECTED"
         db.add(AuditEvent(run_id=approval.run_id, employee_id=employee.id, event_type="ACTION_REJECTED", details={"approval_id": approval.id}))
         db.commit()
         return {"status": "REJECTED"}
@@ -128,6 +134,26 @@ def decide(approval_id: str, body: Decision, employee: Employee = Depends(get_cu
                       details={"result": result, "verified": verified, "notification_id": notification["id"]}))
     db.commit()
     return {"status": "APPROVED", "result": result, "verified": verified, "notification": notification}
+
+
+@router.post("/attention/{attention_id}/dismiss")
+def dismiss_attention(attention_id: str, employee: Employee = Depends(get_current_employee),
+                      db: Session = Depends(get_db)):
+    item = db.get(AttentionItem, attention_id)
+    if not item or item.employee_id != employee.id or item.status == "DISMISSED":
+        raise HTTPException(404, "Attention item not found")
+    approval = db.scalar(select(ApprovalRequest).where(ApprovalRequest.run_id == item.run_id))
+    if not approval or approval.status == "PENDING":
+        raise HTTPException(409, "Decide the approval before dismissing this task")
+    previous_status = item.status
+    item.status = "DISMISSED"
+    db.add(AuditEvent(run_id=item.run_id, employee_id=employee.id,
+                      event_type="ATTENTION_DISMISSED",
+                      details={"attention_id": item.id, "decision": approval.status,
+                               "previous_status": previous_status}))
+    db.commit()
+    return {"status": "DISMISSED", "attention_id": item.id,
+            "decision": approval.status}
 
 
 @router.get("/audit")
