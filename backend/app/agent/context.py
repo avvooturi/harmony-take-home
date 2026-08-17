@@ -147,7 +147,9 @@ class ContextService:
         if any(term in normalized for term in business_terms):
             return context
         if "today" in normalized or "focus" in normalized or "priority" in normalized:
-            return {**context, "recent_context": context["recent_context"][:3]}
+            return {**context, "recent_context": []}
+        if "task" in normalized or "current work" in normalized:
+            return {**context, "recent_context": [], "recommended_actions": []}
         return {
             "employee": context["employee"],
             "current_work": context["current_work"][:3],

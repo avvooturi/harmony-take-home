@@ -1,7 +1,8 @@
 from sqlalchemy import select
 
 from app.agent.chat import AgentChatService
-from app.agent.provider import LLMProvider
+from app.agent import provider as provider_module
+from app.agent.provider import LLMProvider, OllamaProvider
 from app.connectors.erp import ERPConnector
 from app.db import SessionLocal
 from app.models import AuditEvent, Employee, PurchaseOrder
@@ -122,3 +123,77 @@ def test_proactive_shortage_detection_remains_deterministic():
         candidates = ERPConnector(db).shortage_candidates()
         assert candidates == [{"part_id": "PART-X", "production_order_id": "4812",
                                "po_id": "PO-1007"}]
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+def test_available_configured_ollama_model_uses_local_provider(monkeypatch):
+    OllamaProvider.clear_availability_cache()
+    monkeypatch.setattr(provider_module.httpx, "get", lambda *args, **kwargs: FakeResponse({
+        "models": [{"name": provider_module.settings.ollama_model}],
+    }))
+    monkeypatch.setattr(provider_module.httpx, "post", lambda *args, **kwargs: FakeResponse({
+        "response": "Local model used the supplied question and context.",
+    }))
+    with SessionLocal() as db:
+        employee = db.get(Employee, "emp-pm")
+        result = AgentChatService(db).respond(employee, "What should I prioritize?")
+        assert result.reasoning_mode == "local_ai"
+        assert result.provider == "ollama"
+        assert result.model == provider_module.settings.ollama_model
+
+
+def test_unavailable_ollama_is_health_checked_once_then_fast_cached(monkeypatch):
+    OllamaProvider.clear_availability_cache()
+    calls = {"health": 0, "generate": 0}
+
+    def unavailable(*args, **kwargs):
+        calls["health"] += 1
+        raise ConnectionError("not running")
+
+    def should_not_generate(*args, **kwargs):
+        calls["generate"] += 1
+        raise AssertionError("generation should be skipped when health check fails")
+
+    monkeypatch.setattr(provider_module.httpx, "get", unavailable)
+    monkeypatch.setattr(provider_module.httpx, "post", should_not_generate)
+    with SessionLocal() as db:
+        employee = db.get(Employee, "emp-pm")
+        first = AgentChatService(db).respond(employee, "What are my current tasks?")
+        second = AgentChatService(db).respond(employee, "What should I prioritize?")
+        assert first.reasoning_mode == second.reasoning_mode == "deterministic_fallback"
+        assert calls == {"health": 1, "generate": 0}
+
+
+def test_approval_language_routes_to_pending_approval_without_mutation(client, pm_headers):
+    client.post("/api/proactive/run", headers=pm_headers)
+    for phrase in ("approve", "proceed", "do it"):
+        response = client.post("/api/agent/chat", headers=pm_headers,
+                               json={"message": phrase})
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["proposed_action"]["type"] == "review_pending_approval"
+        assert "can’t authorize or execute" in payload["message"]
+    with SessionLocal() as db:
+        assert db.get(PurchaseOrder, "PO-1007").supplier_id == "SUP-Y"
+        assert db.get(PurchaseOrder, "PO-1007").version == 1
+
+
+def test_deterministic_fallback_answers_tasks_and_priorities():
+    with SessionLocal() as db:
+        employee = db.get(Employee, "emp-pm")
+        service = AgentChatService(db, local_provider=FailingProvider())
+        tasks = service.respond(employee, "What are my current tasks?").message
+        priorities = service.respond(employee, "What should I prioritize?").message
+        assert "current authorized tasks" in tasks
+        assert "focus on" in priorities
+        assert "Part X inventory risk" in priorities

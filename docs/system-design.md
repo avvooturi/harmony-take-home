@@ -58,7 +58,7 @@ Regardless of provider choices, agent orchestration, authorization, permission e
 
 ### Local reasoning and fallback
 
-The Agent chat path is provider-neutral. It builds an authorized, question-scoped context, tries the local Ollama-compatible provider, and uses a deterministic question-aware fallback on connection, timeout, malformed-response, or provider errors. Both modes return recommendations only.
+The Agent chat path is provider-neutral. It builds an authorized, question-scoped context, performs a fast model-specific Ollama availability check, and calls generation only when the configured model is present. Negative availability is cached briefly in-process to avoid repeating a long failure, then rechecked for automatic recovery. Connection, timeout, malformed-response, and provider errors use a deterministic question-aware fallback. Both modes return recommendations only. Approval-language intent is intercepted by trusted application code and linked to the existing approval page; it is never accepted as approval itself.
 
 ```mermaid
 flowchart LR

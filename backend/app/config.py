@@ -4,8 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./harmony.db"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2:3b"
-    ollama_timeout_seconds: float = 20.0
+    ollama_model: str = "gemma3:4b"
+    ollama_timeout_seconds: float = 25.0
+    ollama_health_timeout_seconds: float = 1.0
+    ollama_unavailable_cache_seconds: float = 10.0
+    ollama_failure_cache_seconds: float = 30.0
+    ollama_max_output_tokens: int = 64
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

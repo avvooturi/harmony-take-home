@@ -14,7 +14,7 @@ Open `http://localhost:3000`. API docs are at `http://localhost:8000/docs`.
 
 An LLM is optional for the deterministic demo. The provider boundary tries Ollama at `OLLAMA_URL` using `OLLAMA_MODEL`; if it is unavailable, times out, or returns malformed output, chat uses the question-aware deterministic fallback and visibly labels that mode. No hosted model is called by default. For non-Docker development, install `backend/requirements-dev.txt`, run `uvicorn app.main:app --reload` from `backend`, then `npm install && npm run dev` from `frontend`. Local development defaults to SQLite; Docker uses PostgreSQL.
 
-To enable local AI chat, run an Ollama-compatible server on the host, make the configured model available, and keep `OLLAMA_URL=http://host.docker.internal:11434` for the Docker backend. Set `OLLAMA_TIMEOUT_SECONDS` if the local hardware needs a different response timeout. The Agent page reports **Local AI** with the model name after a successful response, or **Deterministic fallback** when local inference fails.
+To enable local AI chat, run an Ollama-compatible server on the host, make the configured model (`gemma3:4b` by default) available, and keep `OLLAMA_URL=http://host.docker.internal:11434` for the Docker backend. Before generation, the provider performs a one-second model-specific `/api/tags` check. An unavailable result is cached for ten seconds so repeated fallback requests remain immediate, then rechecked so Local AI recovers automatically. Local responses are capped at 64 tokens/two short sentences to keep CPU-hosted inference within the 25-second safety timeout. Set the `OLLAMA_*` values if local hardware needs different limits. The Agent page reports **Local AI** with the model name after a successful response, or **Deterministic fallback** when local inference fails.
 
 ## Demo walkthrough
 
@@ -54,6 +54,8 @@ Raw mail, meetings, calendar events, and ERP history are not copied into the mem
 Chat builds a question-scoped subset of the active employee's authorized Work Context and sends the actual question plus that context through `LLMProvider`. The concise system prompt prohibits fabricated enterprise facts and makes recommendations non-authoritative. A response may contain a structured **proposed action**, but it cannot create authority or mutate a source system; controlled tools, reauthorization, human approval, idempotency, concurrency checks, verification, and audit remain application-owned.
 
 Each interaction audits the employee, user message, provider/model, reasoning mode, context-source names, concise response, proposed action, and local-provider failure when fallback occurs. Hidden chain-of-thought is neither requested nor stored.
+
+Natural-language phrases such as “approve,” “proceed,” and “do it” are treated only as navigation intent. When a pending approval exists, chat directs the user to **Review approval**; it never converts conversational language into authorization or execution.
 
 ## Safety and threat model
 

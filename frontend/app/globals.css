@@ -27,6 +27,14 @@
   justify-content: flex-end;
   margin-bottom: 8px;
 }
+.mode-detail {
+  text-align: right;
+  font-size: 12px;
+  margin: -4px 0 8px;
+}
+.chat-action {
+  margin-bottom: 12px;
+}
 .context-hero {
   display: flex;
   justify-content: space-between;

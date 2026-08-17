@@ -74,7 +74,9 @@ type ChatResponse = {
     type: string;
     status: string;
     next_step: string;
+    approval_id?: string;
   } | null;
+  fallback_error: string | null;
 };
 const tabs = [
   "Work Context",
@@ -102,7 +104,9 @@ export default function Home() {
   const [chatMode, setChatMode] = useState({
     mode: "checking",
     model: "",
+    fallbackDetail: "",
   });
+  const [chatAction, setChatAction] = useState<ChatResponse["proposed_action"]>(null);
   const load = useCallback(async () => {
     setError("");
     try {
@@ -192,7 +196,14 @@ export default function Home() {
         method: "POST",
         body: JSON.stringify({ message }),
       });
-      setChatMode({ mode: r.reasoning_mode, model: r.model });
+      setChatMode({
+        mode: r.reasoning_mode,
+        model: r.model,
+        fallbackDetail: r.fallback_error
+          ? "Local model unavailable — using deterministic fallback"
+          : "",
+      });
+      setChatAction(r.proposed_action);
       setMessages((x) => [
         ...x,
         `Agent: ${r.message}`,
@@ -514,6 +525,9 @@ export default function Home() {
               </span>
               {chatMode.model && <small className="muted">{chatMode.model}</small>}
             </div>
+            {chatMode.fallbackDetail && (
+              <div className="mode-detail muted">{chatMode.fallbackDetail}</div>
+            )}
             <div className="chat">
               {messages.map((m, i) => (
                 <div className="message" key={i}>
@@ -521,6 +535,16 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            {chatAction?.type === "review_pending_approval" && (
+              <button className="secondary chat-action" onClick={() => setTab("Approvals")}>
+                Review approval
+              </button>
+            )}
+            {chatAction?.type === "prepare_approval" && (
+              <button className="secondary chat-action" onClick={() => analyze("Approvals")}>
+                Prepare action
+              </button>
+            )}
             <form className="input" onSubmit={chat}>
               <input name="message" placeholder="Ask about your work context…" />
               <button disabled={busy}>{busy ? "Reasoning…" : "Send"}</button>
