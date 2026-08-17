@@ -65,6 +65,17 @@ type WorkContext = {
   long_term_memory: MemoryItem[];
   recommended_actions: RecommendedAction[];
 };
+type ChatResponse = {
+  message: string;
+  reasoning_mode: "local_ai" | "deterministic_fallback";
+  provider: string;
+  model: string;
+  proposed_action: {
+    type: string;
+    status: string;
+    next_step: string;
+  } | null;
+};
 const tabs = [
   "Work Context",
   "Attention",
@@ -88,6 +99,10 @@ export default function Home() {
   const [messages, setMessages] = useState<string[]>([
     "Ask me about purchasing risk. I can recommend actions, but I cannot execute them without the application approval gate.",
   ]);
+  const [chatMode, setChatMode] = useState({
+    mode: "checking",
+    model: "",
+  });
   const load = useCallback(async () => {
     setError("");
     try {
@@ -168,16 +183,27 @@ export default function Home() {
     const f = new FormData(e.currentTarget),
       message = String(f.get("message"));
     if (!message) return;
+    setBusy(true);
+    setError("");
     setMessages((x) => [...x, `You: ${message}`]);
     e.currentTarget.reset();
     try {
-      const r = await request<{ message: string }>("/agent/chat", employee, {
+      const r = await request<ChatResponse>("/agent/chat", employee, {
         method: "POST",
         body: JSON.stringify({ message }),
       });
-      setMessages((x) => [...x, `Agent: ${r.message}`]);
+      setChatMode({ mode: r.reasoning_mode, model: r.model });
+      setMessages((x) => [
+        ...x,
+        `Agent: ${r.message}`,
+        ...(r.proposed_action
+          ? [`Proposed action: ${r.proposed_action.type}. ${r.proposed_action.next_step}.`]
+          : []),
+      ]);
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   const who = employees.find((e) => e.id === employee);
@@ -476,6 +502,18 @@ export default function Home() {
         )}
         {tab === "Agent" && (
           <div className="card">
+            <div className="row chat-mode">
+              <span
+                className={`pill ${chatMode.mode === "deterministic_fallback" ? "pending" : ""}`}
+              >
+                {chatMode.mode === "local_ai"
+                  ? "Local AI"
+                  : chatMode.mode === "deterministic_fallback"
+                    ? "Deterministic fallback"
+                    : "Mode shown after first response"}
+              </span>
+              {chatMode.model && <small className="muted">{chatMode.model}</small>}
+            </div>
             <div className="chat">
               {messages.map((m, i) => (
                 <div className="message" key={i}>
@@ -484,8 +522,8 @@ export default function Home() {
               ))}
             </div>
             <form className="input" onSubmit={chat}>
-              <input name="message" placeholder="What needs my attention?" />
-              <button>Send</button>
+              <input name="message" placeholder="Ask about your work context…" />
+              <button disabled={busy}>{busy ? "Reasoning…" : "Send"}</button>
             </form>
           </div>
         )}

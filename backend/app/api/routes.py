@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..agent.context import ContextService
-from ..agent.provider import DeterministicProvider
+from ..agent.chat import AgentChatService
 from ..auth.service import AuthorizationService
 from ..connectors.erp import ERPConnector, VersionConflict
 from ..connectors.outlook import OutlookConnector
@@ -189,6 +189,8 @@ def invoke_tool(body: ToolRequest, employee: Employee = Depends(get_current_empl
 
 
 @router.post("/agent/chat")
-def chat(body: ChatRequest, employee: Employee = Depends(get_current_employee)):
-    return {"message": DeterministicProvider().generate(body.message), "employee": employee.name,
-            "note": "Chat can recommend; actions only run through registered tools and approval."}
+def chat(body: ChatRequest, employee: Employee = Depends(get_current_employee),
+         db: Session = Depends(get_db)):
+    result = AgentChatService(db).respond(employee, body.message)
+    return {**result.__dict__, "employee": employee.name,
+            "note": "Recommendations are non-authoritative; controlled tools and approval gate all mutations."}

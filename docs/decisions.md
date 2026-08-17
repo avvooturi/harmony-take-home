@@ -48,6 +48,8 @@
 
 **Decision:** support local inference and permit an approved external model provider only through `LLMProvider`; neither is an authority. **Why:** model quality, capacity, and operating economics may justify delegation, while some data classes may require local inference or deterministic processing. **Alternative:** mandate one self-hosted model or tightly couple to one hosted API. **Tradeoff:** provider-neutral prompts and structured outputs require some normalization, but sensitive controls remain stable and workloads can choose an appropriate privacy boundary.
 
+The current chat implementation prefers a locally hosted Ollama-compatible provider and visibly falls back to deterministic, question-aware responses when it fails. Only a minimized authorized context crosses the provider boundary. Provider failures, selected mode, model identifier, context-source names, response, and any proposed action are audited; hidden reasoning is not stored. Proactive detection remains deterministic and does not depend on model availability.
+
 ## Reuse maintained infrastructure rather than rebuild commodities
 
 **Decision:** self-host maintained open-source components such as PostgreSQL, FastAPI, and Next.js instead of authoring equivalents. **Why:** internal control means controlling deployment, configuration, access, and data—not owning every line of infrastructure code. **Alternative:** custom database, web framework, or runtime components. **Tradeoff:** introduces supply-chain and patch-management duties but greatly reduces implementation and reliability risk.

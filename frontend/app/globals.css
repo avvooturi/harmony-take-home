@@ -23,6 +23,10 @@
 .decision-closure p {
   margin-top: 0;
 }
+.chat-mode {
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
 .context-hero {
   display: flex;
   justify-content: space-between;

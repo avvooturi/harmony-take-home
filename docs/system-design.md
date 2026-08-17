@@ -56,6 +56,25 @@ An external capability is acceptable when it provides a concrete advantage—suc
 
 Regardless of provider choices, agent orchestration, authorization, permission evaluation, human approvals, memory policy, audit evidence, tool execution policy, and primary agent persistence remain internally controlled.
 
+### Local reasoning and fallback
+
+The Agent chat path is provider-neutral. It builds an authorized, question-scoped context, tries the local Ollama-compatible provider, and uses a deterministic question-aware fallback on connection, timeout, malformed-response, or provider errors. Both modes return recommendations only.
+
+```mermaid
+flowchart LR
+  Q[Employee question] --> S[Self-scoped ContextService]
+  S --> P[Concise guarded prompt]
+  P --> L[LLMProvider: local Ollama]
+  L -->|success| R[Response + optional proposed action]
+  L -->|failure| F[Deterministic fallback]
+  F --> R
+  R --> A[Interaction audit]
+  R -. no direct call .-> T[Tool registry]
+  T --> Z[Authorization + approval + execution]
+```
+
+The dashed separation is deliberate: model output cannot call a mutation handler. A proposed action must enter the existing trusted workflow before any tool can execute.
+
 ## User-request data flow
 
 ```mermaid

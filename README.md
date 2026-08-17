@@ -12,7 +12,9 @@ docker compose up --build
 
 Open `http://localhost:3000`. API docs are at `http://localhost:8000/docs`.
 
-An LLM is optional for the deterministic demo. The provider boundary supports Ollama at `OLLAMA_URL`; the fallback produces the stable interview scenario without network access. For non-Docker development, install `backend/requirements-dev.txt`, run `uvicorn app.main:app --reload` from `backend`, then `npm install && npm run dev` from `frontend`. Local development defaults to SQLite; Docker uses PostgreSQL.
+An LLM is optional for the deterministic demo. The provider boundary tries Ollama at `OLLAMA_URL` using `OLLAMA_MODEL`; if it is unavailable, times out, or returns malformed output, chat uses the question-aware deterministic fallback and visibly labels that mode. No hosted model is called by default. For non-Docker development, install `backend/requirements-dev.txt`, run `uvicorn app.main:app --reload` from `backend`, then `npm install && npm run dev` from `frontend`. Local development defaults to SQLite; Docker uses PostgreSQL.
+
+To enable local AI chat, run an Ollama-compatible server on the host, make the configured model available, and keep `OLLAMA_URL=http://host.docker.internal:11434` for the Docker backend. Set `OLLAMA_TIMEOUT_SECONDS` if the local hardware needs a different response timeout. The Agent page reports **Local AI** with the model name after a successful response, or **Deterministic fallback** when local inference fails.
 
 ## Demo walkthrough
 
@@ -46,6 +48,12 @@ The **Work Context** view changes with the active demo employee and keeps four c
 - **Recommended Actions:** role- and permission-aware actions composed from the three context layers. Recommendations never grant authority; tools still pass application authorization and approval gates.
 
 Raw mail, meetings, calendar events, and ERP history are not copied into the memory table. The POC stores them in source-system mock tables; production adapters would query Microsoft Graph, Teams/Graph, ERP, and organizational directories through the same connector boundaries.
+
+### Agent chat reasoning
+
+Chat builds a question-scoped subset of the active employee's authorized Work Context and sends the actual question plus that context through `LLMProvider`. The concise system prompt prohibits fabricated enterprise facts and makes recommendations non-authoritative. A response may contain a structured **proposed action**, but it cannot create authority or mutate a source system; controlled tools, reauthorization, human approval, idempotency, concurrency checks, verification, and audit remain application-owned.
+
+Each interaction audits the employee, user message, provider/model, reasoning mode, context-source names, concise response, proposed action, and local-provider failure when fallback occurs. Hidden chain-of-thought is neither requested nor stored.
 
 ## Safety and threat model
 

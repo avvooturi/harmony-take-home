@@ -18,6 +18,7 @@ services:
       DATABASE_URL: postgresql+psycopg://harmony:harmony@db:5432/harmony
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: llama3.2:3b
+      OLLAMA_TIMEOUT_SECONDS: 20
     ports: ["8000:8000"]
     depends_on:
       db: {condition: service_healthy}
@@ -32,4 +33,3 @@ services:
     depends_on: [backend]
 volumes:
   harmony_data:
-

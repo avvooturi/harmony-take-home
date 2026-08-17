@@ -137,3 +137,23 @@ class ContextService:
             "provenance": {"current_and_recent": "Retrieved on demand from source connectors",
                            "long_term_memory": "Selective records persisted by MemoryService"},
         }
+
+    def chat_context(self, employee: Employee, question: str) -> dict:
+        """Question-scoped subset of the already authorized per-user context."""
+        context = self.work_context(employee)
+        normalized = question.lower()
+        business_terms = ("part", "inventory", "supplier", "purchase", "production", "order",
+                          "risk", "approval", "email", "meeting")
+        if any(term in normalized for term in business_terms):
+            return context
+        if "today" in normalized or "focus" in normalized or "priority" in normalized:
+            return {**context, "recent_context": context["recent_context"][:3]}
+        return {
+            "employee": context["employee"],
+            "current_work": context["current_work"][:3],
+            "recent_context": [],
+            "long_term_memory": [memory for memory in context["long_term_memory"]
+                                 if memory["type"] in ("responsibility", "preference")],
+            "recommended_actions": [],
+            "provenance": context["provenance"],
+        }
