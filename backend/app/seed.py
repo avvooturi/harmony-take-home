@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .db import Base
 from .models import (CalendarEvent, Email, Employee, EmployeeEmailAccess, ERPActivity,
                      Inventory, KnowledgeDocument, Memory, OrganizationRelationship, Part,
                      ProductionOrder, ProductionOrderPart, PurchaseOrder, Supplier, TeamsMeeting)
@@ -12,11 +13,15 @@ PURCHASING_PERMISSIONS = [
     "inventory.read", "purchase_order.read", "production_order.read",
     "supplier.read", "supplier_communication.read", "knowledge.read",
     "purchase_order.propose", "purchase_order.write", "outlook.send",
+    "demo.reset",
 ]
 
 
 def seed_work_context(db: Session) -> None:
     """Seed source history separately from selective durable agent memory."""
+    purchasing_manager = db.get(Employee, "emp-pm")
+    if purchasing_manager and "demo.reset" not in purchasing_manager.permissions:
+        purchasing_manager.permissions = [*purchasing_manager.permissions, "demo.reset"]
     current_time = datetime.now(timezone.utc)
     emails = [
         Email(id="EMAIL-FLOOR-QUALITY", sender="quality@harmony.local",
@@ -142,3 +147,16 @@ def seed(db: Session) -> None:
     ])
     db.commit()
     seed_work_context(db)
+
+
+def reset_demo(db: Session) -> None:
+    """Demo-only destructive reset; restore state exclusively through the canonical seed."""
+    try:
+        for table in reversed(Base.metadata.sorted_tables):
+            db.execute(table.delete())
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.expunge_all()
+    seed(db)

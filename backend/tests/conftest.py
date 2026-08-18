@@ -1,6 +1,8 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+os.environ["APP_ENVIRONMENT"] = "test"
+os.environ["DEMO_RESET_ENABLED"] = "true"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -31,4 +33,3 @@ def pm_headers(): return {"X-Employee-Id": "emp-pm"}
 
 @pytest.fixture
 def floor_headers(): return {"X-Employee-Id": "emp-floor"}
-

@@ -25,6 +25,10 @@ To enable local AI chat, run an Ollama-compatible server on the host, make the c
 5. Open **Audit** for recommendation, authorization, and execution evidence.
 6. Switch to **Frank Ortiz — Floor Employee**. Purchasing analysis and PO access return `403`.
 
+Use **Reset Demo** in the header while signed in as the Purchasing Manager to restore the exact original seed state. The UI asks for confirmation, clears local chat state, and reloads the seeded Work Context. This clears all demo workflow, approval, attention, audit, idempotency, notification, and mutation state; approval and authorization behavior during normal use is unchanged.
+
+The reset API is fail-closed: application defaults are `APP_ENVIRONMENT=production` and `DEMO_RESET_ENABLED=false`. Docker Compose explicitly opts into `demo/true`; tests use `test/true`. Both an allowed environment and the `demo.reset` permission are required, otherwise the endpoint is hidden or denied. Do not enable it in a production deployment.
+
 To reset the demo, run `docker compose down -v` (this deletes only the demo volume) and start it again.
 
 ## Architecture

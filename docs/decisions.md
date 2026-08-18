@@ -53,3 +53,7 @@ The current chat implementation prefers a locally hosted Ollama-compatible provi
 ## Reuse maintained infrastructure rather than rebuild commodities
 
 **Decision:** self-host maintained open-source components such as PostgreSQL, FastAPI, and Next.js instead of authoring equivalents. **Why:** internal control means controlling deployment, configuration, access, and data—not owning every line of infrastructure code. **Alternative:** custom database, web framework, or runtime components. **Tradeoff:** introduces supply-chain and patch-management duties but greatly reduces implementation and reliability risk.
+
+## Demo reset reuses canonical seeding and fails closed
+
+**Decision:** permit a destructive full-state reset only when the environment and feature flag explicitly identify a demo/test deployment, and require the seeded `demo.reset` permission. The reset deletes mapped demo tables in reverse dependency order and invokes the same canonical seed function used at startup. **Why:** repeatable interviews need a trustworthy clean slate without maintaining a second set of reset constants. **Alternative:** manually undo only PO and approval changes or expose a production admin reset. **Tradeoff:** the operation is intentionally global and unsuitable for concurrent/production use, so production defaults hide it completely and no reset audit record is retained in the newly pristine dataset.

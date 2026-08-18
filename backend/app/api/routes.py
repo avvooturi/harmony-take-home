@@ -9,10 +9,12 @@ from ..agent.chat import AgentChatService
 from ..auth.service import AuthorizationService
 from ..connectors.erp import ERPConnector, VersionConflict
 from ..connectors.outlook import OutlookConnector
+from ..config import settings
 from ..db import get_db
 from ..models import (AgentRun, AgentStep, ApprovalRequest, AttentionItem, AuditEvent,
                       Employee)
 from ..proactive.service import ProactiveService
+from ..seed import reset_demo
 from ..tools.registry import ToolRegistry
 from .dependencies import get_current_employee
 from .schemas import ChatRequest, Decision, ToolRequest, serialize
@@ -55,6 +57,18 @@ def employees(db: Session = Depends(get_db)):
 @router.get("/me")
 def me(employee: Employee = Depends(get_current_employee)):
     return serialize(employee, ["id", "name", "role", "department", "permissions"])
+
+
+@router.post("/demo/reset")
+def demo_reset(employee: Employee = Depends(get_current_employee),
+               db: Session = Depends(get_db)):
+    if not settings.demo_reset_available:
+        raise HTTPException(404, "Not found")
+    AuthorizationService.require(employee, "demo.reset")
+    reset_demo(db)
+    restored = ERPConnector(db).purchase_order("PO-1007")
+    return {"status": "RESET", "message": "Demo restored to its original seeded state.",
+            "purchase_order": restored}
 
 
 @router.get("/work-context")

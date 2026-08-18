@@ -129,6 +129,11 @@ export default function Home() {
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 6500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   async function analyze(destination: "Attention" | "Approvals") {
     setBusy(true);
     setNotice("");
@@ -176,6 +181,29 @@ export default function Home() {
       setNotice(
         "Task removed from your Attention feed. Its approval and audit history remain available.",
       );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function resetDemo() {
+    if (!window.confirm("Reset all demo data and restore the original seeded scenario?")) {
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    setError("");
+    try {
+      await request("/demo/reset", employee, { method: "POST" });
+      setMessages([
+        "Ask me about purchasing risk. I can recommend actions, but I cannot execute them without the application approval gate.",
+      ]);
+      setChatMode({ mode: "checking", model: "", fallbackDetail: "" });
+      setChatAction(null);
+      setTab("Work Context");
+      await load();
+      setNotice("Demo reset complete. The original Part X scenario is ready to run again.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -244,26 +272,39 @@ export default function Home() {
               {who?.role} · {who?.department}
             </div>
           </div>
-          <select
-            className="switcher"
-            value={employee}
-            onChange={(e) => setEmployee(e.target.value)}
-          >
-            {employees.map((e) => (
-              <option value={e.id} key={e.id}>
-                {e.name} — {e.role}
-              </option>
-            ))}
-          </select>
+          <div className="header-actions">
+            {who?.permissions.includes("demo.reset") && (
+              <button className="secondary reset-demo" disabled={busy} onClick={resetDemo}>
+                {busy ? "Working…" : "Reset Demo"}
+              </button>
+            )}
+            <select
+              className="switcher"
+              value={employee}
+              onChange={(e) => setEmployee(e.target.value)}
+            >
+              {employees.map((e) => (
+                <option value={e.id} key={e.id}>
+                  {e.name} — {e.role}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {error && (
-          <div className="card error">
-            <b>Access or request error:</b> {error}
+          <div className="card error notification-banner" role="alert">
+            <div><b>Access or request error:</b> {error}</div>
+            <button className="notification-close" aria-label="Dismiss error" onClick={() => setError("")}>
+              ×
+            </button>
           </div>
         )}
         {notice && (
-          <div className="card success">
+          <div className="card success notification-banner" role="status">
             <b>{notice}</b>
+            <button className="notification-close" aria-label="Dismiss notification" onClick={() => setNotice("")}>
+              ×
+            </button>
           </div>
         )}
         {tab === "Work Context" && workContext && (
