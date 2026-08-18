@@ -10,6 +10,9 @@ import httpx
 from ..config import settings
 
 
+CLARIFICATION_RESPONSE = "I’m not sure what you’d like help with. Could you clarify the work question or task you want me to review?"
+
+
 @dataclass(frozen=True)
 class ProviderAvailability:
     available: bool
@@ -128,7 +131,7 @@ class DeterministicProvider(LLMProvider):
             "impact",
         )
         if len(words) < 2 or not any(token in normalized for token in recognized_terms):
-            return "I’m not sure what you’d like help with. Could you clarify the work question or task you want me to review?"
+            return CLARIFICATION_RESPONSE
         if any(token in normalized for token in ("focus", "today", "priority", "prioritize")):
             items = context.get("current_work", [])[:3]
             if not items:

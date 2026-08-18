@@ -1,3 +1,5 @@
+import pytest
+
 from sqlalchemy import select
 
 from app.agent.chat import AgentChatService
@@ -54,13 +56,37 @@ def test_different_questions_produce_different_responses():
         assert first.message != second.message
 
 
-def test_unrelated_input_does_not_force_part_x_recommendation():
+@pytest.mark.parametrize("question", [
+    "Test Test 123",
+    "asdf qwer",
+    "unrelated generic text with no work intent",
+])
+def test_unrelated_input_skips_local_ai_and_enterprise_context(question):
     with SessionLocal() as db:
+        provider = RecordingProvider()
         employee = db.get(Employee, "emp-pm")
-        result = AgentChatService(db, local_provider=FailingProvider()).respond(
-            employee, "test tesr 125")
+        result = AgentChatService(db, local_provider=provider).respond(employee, question)
+        assert provider.prompts == []
         assert "clarify" in result.message.lower()
-        assert "Part X will likely cause" not in result.message
+        assert "part x" not in result.message.lower()
+        assert "supplier" not in result.message.lower()
+        assert result.context_sources == []
+        assert result.proposed_action is None
+
+
+@pytest.mark.parametrize("question", [
+    "Why is Part X at risk?",
+    "What should I prioritize today?",
+    "What are my current tasks?",
+    "Why should we consider Supplier Z?",
+])
+def test_work_questions_still_use_local_ai(question):
+    with SessionLocal() as db:
+        provider = RecordingProvider()
+        employee = db.get(Employee, "emp-pm")
+        result = AgentChatService(db, local_provider=provider).respond(employee, question)
+        assert len(provider.prompts) == 1
+        assert result.reasoning_mode == "local_ai"
 
 
 def test_employee_context_is_scoped_to_active_employee():
